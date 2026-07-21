@@ -1,0 +1,879 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+<title>实习记账 · Intern Ledger</title>
+<link rel="icon" href="data:,">
+<style>
+  :root{
+    --bg:#14161c;
+    --card:#1c1f27;
+    --card2:#22252e;
+    --line:rgba(255,255,255,0.08);
+    --text:#ECEAE4;
+    --muted:#8B909C;
+    --amber:#FFB020;
+    --green:#33D6A6;
+    --red:#FF5C6B;
+    --blue:#5DA9FF;
+    --radius:14px;
+    --mono: ui-monospace, "SF Mono", Menlo, Consolas, "Cascadia Mono", monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", "Segoe UI", sans-serif;
+  }
+  body.light{
+    --bg:#F3F1EC;
+    --card:#FFFFFF;
+    --card2:#EEEBE3;
+    --line:rgba(20,20,20,0.08);
+    --text:#1B1C20;
+    --muted:#71757E;
+  }
+  *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--bg);
+    color:var(--text);
+    font-family:var(--sans);
+    min-height:100vh;
+    padding-bottom:76px;
+    transition:background .25s ease, color .25s ease;
+  }
+  .wrap{max-width:480px;margin:0 auto;padding:16px 14px 8px;}
+  /* ---- top bar ---- */
+  .topbar{display:flex;align-items:center;justify-content:space-between;padding:4px 2px 14px;}
+  .topbar h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.2px;}
+  .topbar .sub{font-size:11px;color:var(--muted);font-family:var(--mono);letter-spacing:.5px;}
+  .theme-toggle{
+    width:40px;height:24px;border-radius:20px;background:var(--card2);
+    border:1px solid var(--line);position:relative;cursor:pointer;flex:none;
+  }
+  .theme-toggle::after{
+    content:'';position:absolute;top:2px;left:2px;width:18px;height:18px;border-radius:50%;
+    background:var(--amber); transition:transform .2s ease;
+  }
+  body.light .theme-toggle::after{transform:translateX(16px); background:#333;}
+
+  /* ---- station board ---- */
+  .board{
+    background:linear-gradient(180deg, var(--card), var(--card2));
+    border:1px solid var(--line);
+    border-radius:var(--radius);
+    padding:16px 16px 14px;
+    position:relative;
+    overflow:hidden;
+  }
+  .board::before{
+    content:'实习预算 · BEIJING LEDGER';
+    position:absolute; top:8px; right:14px;
+    font-family:var(--mono); font-size:9px; letter-spacing:1.5px; color:var(--muted); opacity:.6;
+  }
+  .board-row{display:flex; gap:8px; margin-top:6px;}
+  .board-cell{flex:1; text-align:left;}
+  .board-cell .lbl{font-size:11px;color:var(--muted); margin-bottom:4px;}
+  .board-cell .val{font-family:var(--mono); font-size:19px; font-weight:700; letter-spacing:.3px;}
+  .board-cell.spent .val{color:var(--red);}
+  .board-cell.remain .val{color:var(--green);}
+  .board-cell.total .val{color:var(--text);}
+
+  /* metro progress */
+  .metro{margin-top:16px; position:relative; height:34px;}
+  .metro-line{position:absolute; top:16px; left:6px; right:6px; height:3px; background:var(--line); border-radius:2px; overflow:visible;}
+  .metro-fill{position:absolute; top:0; left:0; height:100%; background:var(--amber); border-radius:2px; transition:width .4s ease;}
+  .metro-stop{position:absolute; top:-4.5px; width:11px; height:11px; border-radius:50%; background:var(--card); border:2px solid var(--line); transform:translateX(-50%);}
+  .metro-stop.filled{border-color:var(--amber);}
+  .metro-dot{position:absolute; top:-6px; width:13px;height:13px;border-radius:50%; background:var(--amber); box-shadow:0 0 0 4px rgba(255,176,32,.2); transform:translateX(-50%); transition:left .4s ease;}
+  .metro-pct{position:absolute; top:22px; font-family:var(--mono); font-size:9px; color:var(--muted); transform:translateX(-50%);}
+
+  /* daily / countdown cards */
+  .row2{display:flex; gap:10px; margin-top:12px;}
+  .mini-card{flex:1; background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:12px;}
+  .mini-card .lbl{font-size:11px; color:var(--muted); margin-bottom:6px;}
+  .mini-card .big{font-family:var(--mono); font-size:20px; font-weight:700;}
+  .mini-card .big.amber{color:var(--amber);}
+  .mini-card .big.blue{color:var(--blue);}
+  .mini-card .foot{font-size:10.5px; color:var(--muted); margin-top:4px;}
+
+  /* section titles */
+  h2.section-title{font-size:13px; font-weight:700; margin:22px 2px 10px; color:var(--muted); letter-spacing:.3px; text-transform:uppercase;}
+
+  /* quick add */
+  .add-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px;}
+  .chips{display:flex; flex-wrap:wrap; gap:8px; margin-bottom:12px;}
+  .chip{
+    padding:7px 12px; border-radius:20px; background:var(--card2); border:1px solid var(--line);
+    font-size:12.5px; color:var(--text); cursor:pointer; display:flex; align-items:center; gap:5px; user-select:none;
+  }
+  .chip.active{background:var(--chip-color, var(--amber)); color:#14161c; border-color:transparent; font-weight:700;}
+  .field-row{display:flex; gap:10px; margin-bottom:10px;}
+  .field{flex:1; display:flex; flex-direction:column; gap:5px;}
+  .field label{font-size:11px; color:var(--muted);}
+  input[type=date], input[type=number], input[type=text], select{
+    background:var(--card2); border:1px solid var(--line); color:var(--text);
+    padding:10px 10px; border-radius:10px; font-size:14px; font-family:var(--sans); width:100%;
+  }
+  input[type=number]{font-family:var(--mono);}
+  input:focus, select:focus{outline:2px solid var(--amber); outline-offset:1px;}
+  .btn{
+    width:100%; padding:12px; border-radius:10px; border:none; background:var(--amber); color:#17130a;
+    font-size:14.5px; font-weight:700; cursor:pointer; letter-spacing:.3px;
+  }
+  .btn:active{transform:scale(.98);}
+  .btn.secondary{background:var(--card2); color:var(--text); border:1px solid var(--line);}
+  .btn.danger{background:rgba(255,92,107,.12); color:var(--red); border:1px solid rgba(255,92,107,.35);}
+  .btn.ghost{background:transparent;color:var(--blue);border:1px solid var(--line);}
+
+  /* preset row for 房租专区 */
+  .presets{display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px;}
+  .preset-btn{font-size:11.5px; padding:6px 10px; border-radius:8px; background:var(--card2); border:1px dashed var(--line); color:var(--muted); cursor:pointer;}
+
+  /* list */
+  .day-group{margin-top:16px;}
+  .day-head{font-family:var(--mono); font-size:11px; color:var(--muted); margin:0 2px 8px; display:flex; justify-content:space-between;}
+  .item{
+    display:flex; align-items:center; gap:10px; background:var(--card); border:1px solid var(--line);
+    border-radius:12px; padding:11px 12px; margin-bottom:8px; cursor:pointer;
+  }
+  .item .ico{width:34px; height:34px; border-radius:9px; display:flex; align-items:center; justify-content:center; font-size:16px; flex:none;}
+  .item .mid{flex:1; min-width:0;}
+  .item .cat{font-size:13.5px; font-weight:600;}
+  .item .note{font-size:11.5px; color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;}
+  .item .amt{font-family:var(--mono); font-weight:700; font-size:14.5px; color:var(--red); flex:none;}
+  .empty{text-align:center; color:var(--muted); font-size:12.5px; padding:26px 0;}
+
+  /* stats */
+  .stat-card{background:var(--card); border:1px solid var(--line); border-radius:var(--radius); padding:14px; margin-bottom:12px;}
+  .cat-row{display:flex; align-items:center; gap:10px; padding:7px 0;}
+  .cat-row .dot{width:9px;height:9px;border-radius:50%;flex:none;}
+  .cat-row .name{width:56px; font-size:12.5px; flex:none;}
+  .cat-row .bar-bg{flex:1; height:7px; background:var(--card2); border-radius:5px; overflow:hidden;}
+  .cat-row .bar-fill{height:100%; border-radius:5px;}
+  .cat-row .amt{font-family:var(--mono); font-size:12px; width:64px; text-align:right; flex:none;}
+  canvas{max-width:100%;}
+
+  /* settings */
+  .toggle-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--line);}
+  .toggle-row:last-child{border-bottom:none;}
+  .toggle-row .t{font-size:13.5px;}
+  .toggle-row .d{font-size:11px; color:var(--muted); margin-top:2px;}
+
+  /* tabbar */
+  .tabbar{
+    position:fixed; bottom:0; left:0; right:0; background:var(--card); border-top:1px solid var(--line);
+    display:flex; padding:6px 8px calc(6px + env(safe-area-inset-bottom)); z-index:50;
+  }
+  .tab-btn{
+    flex:1; background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:3px;
+    padding:6px 0; color:var(--muted); cursor:pointer; font-family:var(--sans); font-size:10.5px;
+  }
+  .tab-btn .icon{font-size:18px;}
+  .tab-btn.active{color:var(--amber);}
+
+  .panel{display:none;}
+  .panel.active{display:block;}
+
+  /* modal */
+  .overlay{
+    position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:flex-end; justify-content:center; z-index:100;
+  }
+  .overlay.show{display:flex;}
+  .modal{
+    background:var(--card); width:100%; max-width:480px; border-radius:18px 18px 0 0; padding:18px 16px calc(18px + env(safe-area-inset-bottom));
+    border:1px solid var(--line); border-bottom:none;
+  }
+  .modal h3{margin:0 0 12px; font-size:15px;}
+  .modal-actions{display:flex; gap:10px; margin-top:12px;}
+
+  .toast{
+    position:fixed; bottom:90px; left:50%; transform:translateX(-50%); background:var(--card2);
+    color:var(--text); padding:9px 16px; border-radius:20px; font-size:12.5px; border:1px solid var(--line);
+    opacity:0; pointer-events:none; transition:opacity .25s ease, transform .25s ease; z-index:200;
+  }
+  .toast.show{opacity:1; transform:translateX(-50%) translateY(-6px);}
+
+  ::selection{background:var(--amber); color:#14161c;}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topbar">
+    <div>
+      <h1>北京实习记账</h1>
+      <div class="sub" id="todayLabel">--</div>
+    </div>
+    <div class="theme-toggle" id="themeToggle" role="button" aria-label="切换深色模式"></div>
+  </div>
+
+  <!-- board always visible -->
+  <div class="board">
+    <div class="board-row">
+      <div class="board-cell total"><div class="lbl">总预算</div><div class="val" id="bTotal">¥0</div></div>
+      <div class="board-cell spent"><div class="lbl">已花</div><div class="val" id="bSpent">¥0</div></div>
+      <div class="board-cell remain"><div class="lbl">剩余</div><div class="val" id="bRemain">¥0</div></div>
+    </div>
+    <div class="metro">
+      <div class="metro-line">
+        <div class="metro-fill" id="metroFill"></div>
+        <div class="metro-stop" style="left:0%"></div>
+        <div class="metro-stop" style="left:25%"></div>
+        <div class="metro-stop" style="left:50%"></div>
+        <div class="metro-stop" style="left:75%"></div>
+        <div class="metro-stop" style="left:100%"></div>
+        <div class="metro-dot" id="metroDot" style="left:0%"></div>
+      </div>
+      <div class="metro-pct" id="metroPct" style="left:0%">0%</div>
+    </div>
+    <div class="row2">
+      <div class="mini-card">
+        <div class="lbl">今日建议可花</div>
+        <div class="big amber" id="dailyBudget">¥ --</div>
+        <div class="foot" id="paydayFoot">未设置发薪日</div>
+      </div>
+      <div class="mini-card">
+        <div class="lbl">花呗倒计时</div>
+        <div class="big blue" id="huabeiDays">--</div>
+        <div class="foot" id="huabeiFoot">未设置还款日</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB: 记账 ================= -->
+  <div class="panel active" id="panel-home">
+    <h2 class="section-title">新增记录</h2>
+    <div class="add-card">
+      <div class="chips" id="catChips"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>日期</label>
+          <input type="date" id="inDate">
+        </div>
+        <div class="field">
+          <label>金额 (¥)</label>
+          <input type="number" id="inAmount" placeholder="0.00" step="0.01" inputmode="decimal">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>备注（可选）</label>
+          <input type="text" id="inNote" placeholder="例如：续住3天">
+        </div>
+      </div>
+      <button class="btn" id="addBtn">添加记录</button>
+    </div>
+
+    <h2 class="section-title">支出记录</h2>
+    <div id="expenseList"></div>
+  </div>
+
+  <!-- ================= TAB: 统计 ================= -->
+  <div class="panel" id="panel-stats">
+    <h2 class="section-title">分类统计</h2>
+    <div class="stat-card" id="catStatList"></div>
+
+    <h2 class="section-title">支出占比</h2>
+    <div class="stat-card"><canvas id="pieChart" height="220"></canvas></div>
+
+    <h2 class="section-title">近14日趋势</h2>
+    <div class="stat-card"><canvas id="barChart" height="200"></canvas></div>
+
+    <h2 class="section-title">房租专区</h2>
+    <div class="stat-card">
+      <div class="lbl" style="font-size:11px;color:var(--muted);margin-bottom:8px;">本月住房相关支出明细</div>
+      <div id="housingBreakdown"></div>
+      <div style="display:flex;justify-content:space-between;margin-top:10px;padding-top:10px;border-top:1px solid var(--line);">
+        <span style="font-size:13px;font-weight:600;">合计</span>
+        <span style="font-family:var(--mono);font-weight:700;color:var(--red);" id="housingTotal">¥0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB: 设置 ================= -->
+  <div class="panel" id="panel-settings">
+    <h2 class="section-title">预算设置</h2>
+    <div class="add-card">
+      <div class="field-row">
+        <div class="field">
+          <label>总预算 (¥)</label>
+          <input type="number" id="setTotal" placeholder="4000" step="0.01">
+        </div>
+        <div class="field">
+          <label>发薪 / 结束日期</label>
+          <input type="date" id="setPayday">
+        </div>
+      </div>
+      <div class="field-row">
+        <div class="field">
+          <label>花呗还款日</label>
+          <input type="date" id="setHuabeiDate">
+        </div>
+        <div class="field">
+          <label>花呗待还金额 (¥)</label>
+          <input type="number" id="setHuabeiAmt" placeholder="0" step="0.01">
+        </div>
+      </div>
+      <button class="btn" id="saveSettingsBtn">保存设置</button>
+    </div>
+
+    <h2 class="section-title">房租专区 · 快速添加</h2>
+    <div class="add-card">
+      <div class="presets" id="housingPresets"></div>
+      <div class="field-row">
+        <div class="field">
+          <label>项目备注</label>
+          <input type="text" id="hNote" placeholder="例如：中介费">
+        </div>
+        <div class="field">
+          <label>金额 (¥)</label>
+          <input type="number" id="hAmount" placeholder="0.00" step="0.01">
+        </div>
+      </div>
+      <button class="btn secondary" id="addHousingBtn">加入房租专区</button>
+    </div>
+
+    <h2 class="section-title">数据</h2>
+    <div class="add-card">
+      <div class="toggle-row">
+        <div>
+          <div class="t">深色模式</div>
+          <div class="d">Notion 风格配色</div>
+        </div>
+        <div class="theme-toggle" id="themeToggle2"></div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:14px;">
+        <button class="btn ghost" id="exportBtn">导出 CSV</button>
+        <button class="btn ghost" id="importBtn">导入 CSV</button>
+      </div>
+      <input type="file" id="importFile" accept=".csv" style="display:none;">
+      <button class="btn danger" id="clearBtn" style="margin-top:10px;">清空全部数据</button>
+    </div>
+  </div>
+</div>
+
+<!-- tab bar -->
+<div class="tabbar">
+  <button class="tab-btn active" data-tab="home"><span class="icon">🧾</span>记账</button>
+  <button class="tab-btn" data-tab="stats"><span class="icon">📊</span>统计</button>
+  <button class="tab-btn" data-tab="settings"><span class="icon">⚙️</span>设置</button>
+</div>
+
+<!-- edit modal -->
+<div class="overlay" id="editOverlay">
+  <div class="modal">
+    <h3>编辑记录</h3>
+    <div class="field-row">
+      <div class="field">
+        <label>日期</label>
+        <input type="date" id="editDate">
+      </div>
+      <div class="field">
+        <label>金额 (¥)</label>
+        <input type="number" id="editAmount" step="0.01">
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>分类</label>
+        <select id="editCategory"></select>
+      </div>
+    </div>
+    <div class="field-row">
+      <div class="field">
+        <label>备注</label>
+        <input type="text" id="editNote">
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn danger" id="deleteBtn">删除</button>
+      <button class="btn secondary" id="cancelEditBtn">取消</button>
+      <button class="btn" id="saveEditBtn">保存</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script>
+(function(){
+  "use strict";
+
+  var CATEGORIES = [
+    {key:'房租', label:'房租', icon:'🏠', color:'#C23531'},
+    {key:'青旅', label:'青旅', icon:'🛏️', color:'#FF8A3D'},
+    {key:'餐饮', label:'餐饮', icon:'🍜', color:'#FFC94D'},
+    {key:'交通', label:'交通', icon:'🚇', color:'#4FA8FF'},
+    {key:'面试', label:'面试', icon:'💼', color:'#7C6CFF'},
+    {key:'日用品', label:'日用品', icon:'🧴', color:'#33D6A6'},
+    {key:'娱乐', label:'娱乐', icon:'🎮', color:'#FF5C9E'},
+    {key:'其它', label:'其它', icon:'✦', color:'#8B909C'}
+  ];
+  var HOUSING_PRESETS = ['房租','中介费','网费','水电','维修费'];
+
+  var LS = {
+    settings:'ib_settings_v1',
+    expenses:'ib_expenses_v1',
+    theme:'ib_theme_v1'
+  };
+
+  function loadJSON(key, fallback){
+    try{
+      var v = localStorage.getItem(key);
+      return v ? JSON.parse(v) : fallback;
+    }catch(e){ return fallback; }
+  }
+  function saveJSON(key, val){
+    try{ localStorage.setItem(key, JSON.stringify(val)); }catch(e){}
+  }
+
+  var state = {
+    settings: loadJSON(LS.settings, {totalBudget:0, payday:'', huabeiDate:'', huabeiAmt:0}),
+    expenses: loadJSON(LS.expenses, []),
+    theme: localStorage.getItem(LS.theme) || 'dark'
+  };
+  var selectedCategory = CATEGORIES[0].key;
+  var pieChartInst = null, barChartInst = null;
+
+  function catInfo(key){
+    for(var i=0;i<CATEGORIES.length;i++) if(CATEGORIES[i].key===key) return CATEGORIES[i];
+    return CATEGORIES[CATEGORIES.length-1];
+  }
+  function fmt(n){
+    n = Number(n)||0;
+    return '¥' + n.toLocaleString('zh-CN', {minimumFractionDigits:2, maximumFractionDigits:2});
+  }
+  function todayISO(){
+    var d = new Date();
+    return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+  }
+  function daysBetween(fromISO, toISO){
+    var a = new Date(fromISO+'T00:00:00');
+    var b = new Date(toISO+'T00:00:00');
+    return Math.round((b-a)/86400000);
+  }
+  function showToast(msg){
+    var t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(function(){ t.classList.remove('show'); }, 1600);
+  }
+
+  /* ---------------- theme ---------------- */
+  function applyTheme(){
+    document.body.classList.toggle('light', state.theme==='light');
+  }
+  function toggleTheme(){
+    state.theme = state.theme==='dark' ? 'light' : 'dark';
+    localStorage.setItem(LS.theme, state.theme);
+    applyTheme();
+  }
+  document.getElementById('themeToggle').addEventListener('click', toggleTheme);
+  document.getElementById('themeToggle2').addEventListener('click', toggleTheme);
+
+  /* ---------------- tabs ---------------- */
+  var tabBtns = document.querySelectorAll('.tab-btn');
+  tabBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      tabBtns.forEach(function(b){ b.classList.remove('active'); });
+      btn.classList.add('active');
+      document.querySelectorAll('.panel').forEach(function(p){ p.classList.remove('active'); });
+      document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+      if(btn.dataset.tab==='stats'){ renderCharts(); }
+    });
+  });
+
+  /* ---------------- category chips (quick add) ---------------- */
+  var chipsWrap = document.getElementById('catChips');
+  CATEGORIES.forEach(function(c){
+    var el = document.createElement('div');
+    el.className = 'chip' + (c.key===selectedCategory ? ' active' : '');
+    el.style.setProperty('--chip-color', c.color);
+    el.innerHTML = '<span>'+c.icon+'</span><span>'+c.label+'</span>';
+    el.addEventListener('click', function(){
+      selectedCategory = c.key;
+      chipsWrap.querySelectorAll('.chip').forEach(function(x){ x.classList.remove('active'); });
+      el.classList.add('active');
+    });
+    chipsWrap.appendChild(el);
+  });
+
+  /* housing presets */
+  var hpWrap = document.getElementById('housingPresets');
+  HOUSING_PRESETS.forEach(function(label){
+    var b = document.createElement('div');
+    b.className = 'preset-btn';
+    b.textContent = label;
+    b.addEventListener('click', function(){
+      document.getElementById('hNote').value = label;
+      document.getElementById('hAmount').focus();
+    });
+    hpWrap.appendChild(b);
+  });
+
+  /* edit modal category select */
+  var editCatSel = document.getElementById('editCategory');
+  CATEGORIES.forEach(function(c){
+    var o = document.createElement('option');
+    o.value = c.key; o.textContent = c.icon+' '+c.label;
+    editCatSel.appendChild(o);
+  });
+
+  /* ---------------- init form defaults ---------------- */
+  document.getElementById('inDate').value = todayISO();
+
+  /* ---------------- add expense ---------------- */
+  document.getElementById('addBtn').addEventListener('click', function(){
+    var date = document.getElementById('inDate').value || todayISO();
+    var amount = parseFloat(document.getElementById('inAmount').value);
+    var note = document.getElementById('inNote').value.trim();
+    if(!amount || amount<=0){ showToast('请输入有效金额'); return; }
+    state.expenses.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), date:date, category:selectedCategory, amount:amount, note:note});
+    saveJSON(LS.expenses, state.expenses);
+    document.getElementById('inAmount').value = '';
+    document.getElementById('inNote').value = '';
+    showToast('已添加');
+    renderAll();
+  });
+
+  /* housing quick add */
+  document.getElementById('addHousingBtn').addEventListener('click', function(){
+    var note = document.getElementById('hNote').value.trim() || '房租';
+    var amount = parseFloat(document.getElementById('hAmount').value);
+    if(!amount || amount<=0){ showToast('请输入有效金额'); return; }
+    state.expenses.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), date:todayISO(), category:'房租', amount:amount, note:note});
+    saveJSON(LS.expenses, state.expenses);
+    document.getElementById('hNote').value = '';
+    document.getElementById('hAmount').value = '';
+    showToast('已加入房租专区');
+    renderAll();
+  });
+
+  /* ---------------- settings ---------------- */
+  function loadSettingsForm(){
+    document.getElementById('setTotal').value = state.settings.totalBudget || '';
+    document.getElementById('setPayday').value = state.settings.payday || '';
+    document.getElementById('setHuabeiDate').value = state.settings.huabeiDate || '';
+    document.getElementById('setHuabeiAmt').value = state.settings.huabeiAmt || '';
+  }
+  document.getElementById('saveSettingsBtn').addEventListener('click', function(){
+    state.settings = {
+      totalBudget: parseFloat(document.getElementById('setTotal').value) || 0,
+      payday: document.getElementById('setPayday').value || '',
+      huabeiDate: document.getElementById('setHuabeiDate').value || '',
+      huabeiAmt: parseFloat(document.getElementById('setHuabeiAmt').value) || 0
+    };
+    saveJSON(LS.settings, state.settings);
+    showToast('设置已保存');
+    renderAll();
+  });
+
+  /* ---------------- clear data ---------------- */
+  document.getElementById('clearBtn').addEventListener('click', function(){
+    if(!confirm('确定要清空全部记账数据吗？此操作无法撤销。')) return;
+    state.expenses = [];
+    state.settings = {totalBudget:0, payday:'', huabeiDate:'', huabeiAmt:0};
+    saveJSON(LS.expenses, state.expenses);
+    saveJSON(LS.settings, state.settings);
+    loadSettingsForm();
+    showToast('数据已清空');
+    renderAll();
+  });
+
+  /* ---------------- CSV export / import ---------------- */
+  document.getElementById('exportBtn').addEventListener('click', function(){
+    var rows = [['date','category','amount','note']];
+    state.expenses.forEach(function(e){
+      rows.push([e.date, e.category, e.amount, '"'+(e.note||'').replace(/"/g,'""')+'"']);
+    });
+    var csv = rows.map(function(r){ return r.join(','); }).join('\n');
+    var blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = 'intern-budget-'+todayISO()+'.csv';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    showToast('已导出 CSV');
+  });
+  document.getElementById('importBtn').addEventListener('click', function(){
+    document.getElementById('importFile').click();
+  });
+  document.getElementById('importFile').addEventListener('change', function(ev){
+    var file = ev.target.files[0];
+    if(!file) return;
+    var reader = new FileReader();
+    reader.onload = function(e){
+      try{
+        var text = e.target.result;
+        var lines = text.split(/\r?\n/).filter(function(l){ return l.trim().length; });
+        var start = /date,category,amount,note/i.test(lines[0]) ? 1 : 0;
+        var added = 0;
+        for(var i=start;i<lines.length;i++){
+          var m = lines[i].match(/^([^,]*),([^,]*),([^,]*),(.*)$/);
+          if(!m) continue;
+          var date = m[1].trim(), category = m[2].trim(), amount = parseFloat(m[3]);
+          var note = m[4].trim().replace(/^"|"$/g,'').replace(/""/g,'"');
+          if(!date || !amount) continue;
+          state.expenses.push({id:Date.now()+'_'+Math.random().toString(36).slice(2,7), date:date, category:category||'其它', amount:amount, note:note});
+          added++;
+        }
+        saveJSON(LS.expenses, state.expenses);
+        showToast('已导入 '+added+' 条记录');
+        renderAll();
+      }catch(err){
+        showToast('导入失败，请检查文件格式');
+      }
+      ev.target.value = '';
+    };
+    reader.readAsText(file, 'utf-8');
+  });
+
+  /* ---------------- edit modal ---------------- */
+  var editingId = null;
+  var overlay = document.getElementById('editOverlay');
+  function openEdit(id){
+    var e = state.expenses.find(function(x){ return x.id===id; });
+    if(!e) return;
+    editingId = id;
+    document.getElementById('editDate').value = e.date;
+    document.getElementById('editAmount').value = e.amount;
+    document.getElementById('editCategory').value = e.category;
+    document.getElementById('editNote').value = e.note || '';
+    overlay.classList.add('show');
+  }
+  document.getElementById('cancelEditBtn').addEventListener('click', function(){ overlay.classList.remove('show'); editingId=null; });
+  overlay.addEventListener('click', function(ev){ if(ev.target===overlay){ overlay.classList.remove('show'); editingId=null; } });
+  document.getElementById('saveEditBtn').addEventListener('click', function(){
+    if(!editingId) return;
+    var e = state.expenses.find(function(x){ return x.id===editingId; });
+    if(!e) return;
+    var amount = parseFloat(document.getElementById('editAmount').value);
+    if(!amount || amount<=0){ showToast('请输入有效金额'); return; }
+    e.date = document.getElementById('editDate').value || e.date;
+    e.amount = amount;
+    e.category = document.getElementById('editCategory').value;
+    e.note = document.getElementById('editNote').value.trim();
+    saveJSON(LS.expenses, state.expenses);
+    overlay.classList.remove('show');
+    editingId = null;
+    showToast('已保存修改');
+    renderAll();
+  });
+  document.getElementById('deleteBtn').addEventListener('click', function(){
+    if(!editingId) return;
+    if(!confirm('删除这条记录？')) return;
+    state.expenses = state.expenses.filter(function(x){ return x.id!==editingId; });
+    saveJSON(LS.expenses, state.expenses);
+    overlay.classList.remove('show');
+    editingId = null;
+    showToast('已删除');
+    renderAll();
+  });
+
+  /* ---------------- render: board ---------------- */
+  function renderBoard(){
+    var total = state.settings.totalBudget || 0;
+    var spent = state.expenses.reduce(function(s,e){ return s+Number(e.amount||0); }, 0);
+    var remain = total - spent;
+    document.getElementById('bTotal').textContent = fmt(total);
+    document.getElementById('bSpent').textContent = fmt(spent);
+    document.getElementById('bRemain').textContent = fmt(remain);
+
+    var pct = total>0 ? Math.max(0, Math.min(100, (spent/total)*100)) : 0;
+    document.getElementById('metroFill').style.width = pct+'%';
+    document.getElementById('metroDot').style.left = pct+'%';
+    var pctLabel = document.getElementById('metroPct');
+    pctLabel.style.left = pct+'%';
+    pctLabel.textContent = Math.round(pct)+'%';
+    document.querySelectorAll('.metro-stop').forEach(function(s){
+      var stopPct = parseFloat(s.style.left);
+      s.classList.toggle('filled', pct >= stopPct);
+    });
+
+    var today = todayISO();
+    if(state.settings.payday){
+      var dLeft = daysBetween(today, state.settings.payday);
+      if(dLeft > 0){
+        document.getElementById('dailyBudget').textContent = fmt(Math.max(0,remain)/dLeft);
+        document.getElementById('paydayFoot').textContent = '距发薪还有 '+dLeft+' 天';
+      } else if(dLeft === 0){
+        document.getElementById('dailyBudget').textContent = fmt(Math.max(0,remain));
+        document.getElementById('paydayFoot').textContent = '今天发薪日';
+      } else {
+        document.getElementById('dailyBudget').textContent = fmt(Math.max(0,remain));
+        document.getElementById('paydayFoot').textContent = '发薪日已过';
+      }
+    } else {
+      document.getElementById('dailyBudget').textContent = '¥ --';
+      document.getElementById('paydayFoot').textContent = '请在设置中填写发薪日';
+    }
+
+    if(state.settings.huabeiDate){
+      var hLeft = daysBetween(today, state.settings.huabeiDate);
+      document.getElementById('huabeiDays').textContent = hLeft>=0 ? hLeft+' 天' : '已逾期';
+      document.getElementById('huabeiFoot').textContent = '需还 '+fmt(state.settings.huabeiAmt||0);
+    } else {
+      document.getElementById('huabeiDays').textContent = '--';
+      document.getElementById('huabeiFoot').textContent = '请在设置中填写还款日';
+    }
+  }
+
+  /* ---------------- render: expense list ---------------- */
+  function weekdayLabel(iso){
+    var days = ['周日','周一','周二','周三','周四','周五','周六'];
+    var d = new Date(iso+'T00:00:00');
+    return days[d.getDay()];
+  }
+  function renderList(){
+    var wrap = document.getElementById('expenseList');
+    wrap.innerHTML = '';
+    if(state.expenses.length===0){
+      wrap.innerHTML = '<div class="empty">还没有记录，添加第一笔支出吧</div>';
+      return;
+    }
+    var byDate = {};
+    state.expenses.forEach(function(e){
+      (byDate[e.date] = byDate[e.date] || []).push(e);
+    });
+    var dates = Object.keys(byDate).sort().reverse();
+    dates.forEach(function(date){
+      var group = document.createElement('div');
+      group.className = 'day-group';
+      var dayTotal = byDate[date].reduce(function(s,e){ return s+Number(e.amount||0); }, 0);
+      var mm = date.slice(5).replace('-','月')+'日';
+      group.innerHTML = '<div class="day-head"><span>'+mm+' · '+weekdayLabel(date)+'</span><span>'+fmt(dayTotal)+'</span></div>';
+      byDate[date].slice().reverse().forEach(function(e){
+        var c = catInfo(e.category);
+        var item = document.createElement('div');
+        item.className = 'item';
+        item.innerHTML =
+          '<div class="ico" style="background:'+c.color+'22; color:'+c.color+';">'+c.icon+'</div>'+
+          '<div class="mid"><div class="cat">'+c.label+'</div><div class="note">'+(e.note ? e.note : '&nbsp;')+'</div></div>'+
+          '<div class="amt">'+fmt(e.amount)+'</div>';
+        item.addEventListener('click', function(){ openEdit(e.id); });
+        group.appendChild(item);
+      });
+      wrap.appendChild(group);
+    });
+  }
+
+  /* ---------------- render: stats ---------------- */
+  function categoryTotals(){
+    var totals = {};
+    CATEGORIES.forEach(function(c){ totals[c.key] = 0; });
+    state.expenses.forEach(function(e){ totals[e.category] = (totals[e.category]||0) + Number(e.amount||0); });
+    return totals;
+  }
+  function renderStatsList(){
+    var totals = categoryTotals();
+    var grand = Object.values(totals).reduce(function(a,b){ return a+b; }, 0) || 1;
+    var wrap = document.getElementById('catStatList');
+    wrap.innerHTML = '';
+    CATEGORIES.forEach(function(c){
+      var amt = totals[c.key] || 0;
+      var pct = (amt/grand)*100;
+      var row = document.createElement('div');
+      row.className = 'cat-row';
+      row.innerHTML =
+        '<div class="dot" style="background:'+c.color+'"></div>'+
+        '<div class="name">'+c.icon+' '+c.label+'</div>'+
+        '<div class="bar-bg"><div class="bar-fill" style="width:'+pct+'%; background:'+c.color+'"></div></div>'+
+        '<div class="amt">'+fmt(amt)+'</div>';
+      wrap.appendChild(row);
+    });
+  }
+  function renderHousing(){
+    var items = state.expenses.filter(function(e){ return e.category==='房租'; });
+    var wrap = document.getElementById('housingBreakdown');
+    wrap.innerHTML = '';
+    if(items.length===0){
+      wrap.innerHTML = '<div class="empty" style="padding:8px 0;">暂无住房支出</div>';
+    } else {
+      var byNote = {};
+      items.forEach(function(e){
+        var key = e.note || '房租';
+        byNote[key] = (byNote[key]||0) + Number(e.amount||0);
+      });
+      Object.keys(byNote).forEach(function(k){
+        var row = document.createElement('div');
+        row.style.cssText = 'display:flex;justify-content:space-between;padding:5px 0;font-size:12.5px;';
+        row.innerHTML = '<span style="color:var(--muted);">'+k+'</span><span style="font-family:var(--mono);">'+fmt(byNote[k])+'</span>';
+        wrap.appendChild(row);
+      });
+    }
+    var total = items.reduce(function(s,e){ return s+Number(e.amount||0); }, 0);
+    document.getElementById('housingTotal').textContent = fmt(total);
+  }
+  function renderCharts(){
+    if(typeof Chart === 'undefined') return;
+    var totals = categoryTotals();
+    var labels = CATEGORIES.map(function(c){ return c.label; });
+    var data = CATEGORIES.map(function(c){ return totals[c.key]||0; });
+    var colors = CATEGORIES.map(function(c){ return c.color; });
+
+    var pieCtx = document.getElementById('pieChart').getContext('2d');
+    if(pieChartInst) pieChartInst.destroy();
+    pieChartInst = new Chart(pieCtx, {
+      type:'doughnut',
+      data:{ labels:labels, datasets:[{ data:data, backgroundColor:colors, borderWidth:0 }] },
+      options:{
+        plugins:{ legend:{ position:'bottom', labels:{ color: getComputedStyle(document.body).getPropertyValue('--text'), font:{size:11}, padding:12, boxWidth:10 } } },
+        cutout:'62%'
+      }
+    });
+
+    // last 14 days trend
+    var today = new Date();
+    var days = [];
+    for(var i=13;i>=0;i--){
+      var d = new Date(today.getTime() - i*86400000);
+      days.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'));
+    }
+    var dayTotals = days.map(function(iso){
+      return state.expenses.filter(function(e){ return e.date===iso; }).reduce(function(s,e){ return s+Number(e.amount||0); }, 0);
+    });
+    var dayLabels = days.map(function(iso){ return iso.slice(5).replace('-','/'); });
+
+    var barCtx = document.getElementById('barChart').getContext('2d');
+    if(barChartInst) barChartInst.destroy();
+    var mutedColor = getComputedStyle(document.body).getPropertyValue('--muted');
+    var lineColor = getComputedStyle(document.body).getPropertyValue('--line');
+    barChartInst = new Chart(barCtx, {
+      type:'bar',
+      data:{ labels:dayLabels, datasets:[{ data:dayTotals, backgroundColor:'#FFB020', borderRadius:4, maxBarThickness:16 }] },
+      options:{
+        plugins:{ legend:{ display:false } },
+        scales:{
+          x:{ ticks:{ color:mutedColor, font:{size:9} }, grid:{ display:false } },
+          y:{ ticks:{ color:mutedColor, font:{size:9} }, grid:{ color:lineColor } }
+        }
+      }
+    });
+  }
+
+  /* ---------------- render all ---------------- */
+  function renderAll(){
+    renderBoard();
+    renderList();
+    renderStatsList();
+    renderHousing();
+    if(document.getElementById('panel-stats').classList.contains('active')){
+      renderCharts();
+    }
+  }
+
+  function setTodayLabel(){
+    var d = new Date();
+    var days = ['日','一','二','三','四','五','六'];
+    document.getElementById('todayLabel').textContent =
+      d.getFullYear()+'.'+String(d.getMonth()+1).padStart(2,'0')+'.'+String(d.getDate()).padStart(2,'0')+' 周'+days[d.getDay()];
+  }
+
+  /* ---------------- boot ---------------- */
+  applyTheme();
+  setTodayLabel();
+  loadSettingsForm();
+  renderAll();
+})();
+</script>
+</body>
+</html>
